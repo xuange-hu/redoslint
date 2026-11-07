@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import analyze as an
 from . import extract
@@ -234,6 +234,21 @@ def _sarif_uri(path: str | None) -> str:
     if not path:
         return "<pattern>"
     return path.replace("\\", "/")
+
+
+def filter_rules(reports: list[PatternReport],
+                 rule_ids: set[str] | list[str]) -> list[PatternReport]:
+    """Keep only the selected rules — applied *before* any renderer runs.
+
+    Doing it here instead of in the CLI's text printer is what makes JSON,
+    SARIF and the `--fail-on` exit code agree with what the user sees on
+    screen. A team rolling out one rule at a time must be able to trust that
+    CI fails on exactly the rules it enabled.
+    """
+    wanted = set(rule_ids)
+    return [replace(r, findings=[f for f in r.findings
+                                 if f.rule_id in wanted])
+            for r in reports]
 
 
 def fail_level(reports: list[PatternReport], fail_on: str) -> bool:

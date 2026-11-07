@@ -1,7 +1,7 @@
 # redoslint
 
 [![CI](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml/badge.svg)](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml)
-![tests-281%20passing](https://img.shields.io/badge/tests-281%20passing-brightgreen)
+![tests-332%20passing](https://img.shields.io/badge/tests-332%20passing-brightgreen)
 ![python-3.10%2B](https://img.shields.io/badge/python-3.10%2B-blue)
 ![dependencies-0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![rules-9](https://img.shields.io/badge/rules-9-informational)
@@ -123,6 +123,16 @@ redoslint scan . --json | jq '.reports[] | select(.worst=="high")'
 redoslint scan . --sarif out.sarif --fail-on medium
 ```
 
+Rolling out one rule at a time: `--rule` filters **before** rendering, so
+text, JSON, SARIF and the `--fail-on` exit code agree. An unknown id is a usage
+error (exit 2), never a clean scan.
+
+```bash
+redoslint scan . --rule RDS001 --fail-on high
+redoslint scan . --rule RDS001,RDS002 --sarif r.sarif
+redoslint demo --rule RDS001
+```
+
 ## MCP server
 
 Six tools, so an agent can audit regexes without a shell:
@@ -139,6 +149,10 @@ uvx --from "redoslint[mcp]" redoslint-mcp
 | `redos_rule_detail` | description + fix for one rule |
 | `redos_sarif` | SARIF 2.1.0 document |
 | `redos_version` | version |
+
+Per-rule rationale, measured timings and the near-miss every rule must not
+flag: [docs/rules.md](docs/rules.md). Reproduce the numbers with
+`python docs/bench.py` (each measurement is subprocess-isolated with a timeout).
 
 The CLI has the same tour: `redoslint demo [--json]`.
 
@@ -170,6 +184,8 @@ src/redoslint/engine.py     orchestration, JSON, SARIF
 src/redoslint/extract.py    per-language literal extraction
 src/redoslint/cli.py        scan / pattern / rules / demo / version
 src/redoslint/demo.py       embedded fixtures for `redoslint demo`
+docs/rules.md               per-rule rationale + measured backtracking timings
+docs/bench.py               reproduces them, subprocess-isolated
 src/redoslint/mcp_server.py six MCP tools
 examples/vulnerable.py      every rule fires here (CI asserts it)
 examples/safe.py            the same tasks written safely (CI asserts clean)

@@ -108,6 +108,16 @@ redoslint scan . --json | jq '.reports[] | select(.worst=="high")'
 redoslint scan . --sarif out.sarif --fail-on medium
 ```
 
+一条规则一条规则地灰度上线：`--rule` 在**渲染之前**过滤，因此文本、JSON、SARIF 和
+`--fail-on` 退出码看到的是同一批 finding。写错规则 ID 是用法错误（退出码 2），
+不会伪装成「扫描通过」。
+
+```bash
+redoslint scan . --rule RDS001 --fail-on high
+redoslint scan . --rule RDS001,RDS002 --sarif r.sarif
+redoslint demo --rule RDS001
+```
+
 ## MCP 服务
 
 六个工具，让 agent 不用开 shell 就能审正则：
@@ -124,6 +134,10 @@ uvx --from "redoslint[mcp]" redoslint-mcp
 | `redos_rule_detail` | 单条规则说明 + 修法 |
 | `redos_sarif` | 输出 SARIF 2.1.0 |
 | `redos_version` | 版本号 |
+
+每条规则的判定原理、实测耗时、以及「必须不报」的反例见
+[docs/rules.md](docs/rules.md)；用 `python docs/bench.py` 可复现表格
+（每次计时都在带超时的子进程里跑）。
 
 核心保持零依赖；`mcp` 放在 extra 里并锁在 `>=1.2,<2`（2.x 把 `FastMCP` 改名成
 `MCPServer`，路径也换了）。
@@ -152,6 +166,8 @@ src/redoslint/engine.py     编排、JSON、SARIF
 src/redoslint/extract.py    各语言字面量提取
 src/redoslint/cli.py        scan / pattern / rules / demo / version
 src/redoslint/demo.py       内嵌夹具，供 `redoslint demo` 使用
+docs/rules.md               逐条规则原理 + 实测回溯耗时
+docs/bench.py               复现表格，子进程隔离带超时
 src/redoslint/mcp_server.py 六个 MCP 工具
 examples/vulnerable.py      九条规则全部命中（CI 断言）
 examples/safe.py            同样任务的安全写法（CI 断言干净）

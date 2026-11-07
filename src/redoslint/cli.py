@@ -34,12 +34,16 @@ def build_parser() -> argparse.ArgumentParser:
                     help="also write findings as SARIF 2.1.0")
     sp.add_argument("--json", action="store_true",
                     help="machine-readable JSON output")
+    sp.add_argument("--rule", action="append", metavar="RDSxxx[,RDSyyy]",
+                    help="only report these rules (repeatable, comma-separated)")
 
     pp = sub.add_parser("pattern", help="audit a single pattern string")
     pp.add_argument("pattern", help="the regex to audit")
     pp.add_argument("--fail-on", choices=FAIL_CHOICES, default="high")
     pp.add_argument("--sarif", metavar="FILE")
     pp.add_argument("--json", action="store_true")
+    pp.add_argument("--rule", action="append", metavar="RDSxxx[,RDSyyy]",
+                    help="only report these rules (repeatable, comma-separated)")
 
     rp = sub.add_parser("rules", help="list the rules")
     rp.add_argument("--id", dest="rule_id", metavar="RDSxxx",
@@ -48,6 +52,8 @@ def build_parser() -> argparse.ArgumentParser:
     dp = sub.add_parser("demo", help="run the built-in fixtures (no network)")
     dp.add_argument("--json", action="store_true",
                     help="machine-readable JSON output")
+    dp.add_argument("--rule", action="append", metavar="RDSxxx[,RDSyyy]",
+                    help="only report these rules (repeatable, comma-separated)")
 
     sub.add_parser("version", help="print the version")
     return p
@@ -64,6 +70,28 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def _apply_rule_filter(reports, args) -> int | None:
+    """Return None on success, or the exit code for a bad --rule value.
+
+    A typo in a rule id is a usage error (exit 2), not a clean scan. Silently
+    filtering everything down to zero findings would be the dangerous failure.
+    """
+    values = getattr(args, "rule", None)
+    if not values:
+        return None
+    ids = [item.strip() for value in values
+           for item in value.split(",") if item.strip()]
+    unknown = [rid for rid in ids if rid not in eng.RULES_BY_ID]
+    if unknown:
+        print(f"unknown rule {unknown[0]}; try 'redoslint rules'",
+              file=sys.stderr)
+        return 2
+    if not ids:
+        return None
+    reports[:] = eng.filter_rules(reports, set(ids))
+    return None
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "version":
         print(f"redoslint {__version__}")
@@ -77,12 +105,14 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.command == "pattern":
         reports = [eng.scan_pattern(args.pattern)]
-        return _emit(reports, args)
+        bad = _apply_rule_filter(reports, args)
+        return bad if bad is not None else _emit(reports, args)
 
     reports: list = []
     for path in args.paths:
         reports.extend(eng.scan_path(path))
-    return _emit(reports, args)
+    bad = _apply_rule_filter(reports, args)
+    return bad if bad is not None else _emit(reports, args)
 
 
 def _emit(reports, args) -> int:
@@ -129,11 +159,17 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     from . import demo as demo_mod
 
     reports, _tmp = demo_mod.run_demo()
+    # The coverage warning is about the fixture, not about the user's --rule
+    # selection. Compute it before filtering, otherwise selecting one rule
+    # looks like eight rules broke.
+    missing = demo_mod.missing_rules(reports)
+    bad = _apply_rule_filter(reports, args)
+    if bad is not None:
+        return bad
     if args.json:
         print(eng.dumps_json(eng.to_json(reports)))
         return 0
     print(demo_mod.render(reports))
-    missing = demo_mod.missing_rules(reports)
     if missing:  # pragma: no cover - CI catches this before a user does
         print(f"warning: demo no longer reaches {', '.join(missing)}",
               file=sys.stderr)
