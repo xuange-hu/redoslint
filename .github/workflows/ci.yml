@@ -50,7 +50,9 @@ jobs:
           redoslint pattern "^(a+)+$" || echo "exit 1 on findings, as designed"
           # The checked-in safe fixture must stay clean even at --fail-on low.
           redoslint scan examples/safe.py --fail-on low
-          redoslint scan examples/vulnerable.py --json > /tmp/demo.json
+          # --fail-on none: these two lines are shape checks on the JSON and
+          # SARIF, not gates. Without it the step dies on the (correct) exit 1.
+          redoslint scan examples/vulnerable.py --json --fail-on none > /tmp/demo.json
           python -c "
           import json
           d = json.load(open('/tmp/demo.json'))
