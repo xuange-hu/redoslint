@@ -239,3 +239,16 @@ def test_worst_severity_property():
     assert eng.scan_pattern(r"^(a+)+$").worst == "high"
     assert eng.scan_pattern("user|username").worst == "low"
     assert eng.scan_pattern("^a+$").worst is None
+
+
+def test_rds001_ignores_fixed_length_bodies():
+    """A body that always consumes the same number of characters has no
+    ambiguous split, so nested quantifiers there are linear."""
+    assert "RDS001" not in ids("^(?:a{2})*b$")
+    assert "RDS001" not in ids("^(?:ab){2,}$")
+    assert "RDS001" not in ids("^(?:a{2}|b{2})+$")
+
+
+def test_rds001_still_fires_when_the_body_length_is_free():
+    assert "RDS001" in ids("^(a+)+$")
+    assert "RDS001" in ids("^(?:a+)+b$")

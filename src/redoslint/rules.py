@@ -206,6 +206,12 @@ def check_rds001(node: Node, ctx) -> list[Finding]:
     quantifier should take, and every choice spawns the same choice again."""
     if not isinstance(node, Quant) or not _q_is_loose(node):
         return []
+    # A body of fixed length has no ambiguous split: `(?:a{2})*` can only break
+    # between character pairs, so there is exactly one way to parse the input.
+    # Without this the rule flags a linear pattern, which is the fastest way to
+    # teach a user to ignore the tool.
+    if an.fixed_length(node.child) is not None:
+        return []
     parts = _parts(node.child)
     for i, part in enumerate(parts):
         inner = an.unwrap_groups(part)

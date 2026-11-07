@@ -45,6 +45,10 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--id", dest="rule_id", metavar="RDSxxx",
                     help="show one rule in full")
 
+    dp = sub.add_parser("demo", help="run the built-in fixtures (no network)")
+    dp.add_argument("--json", action="store_true",
+                    help="machine-readable JSON output")
+
     sub.add_parser("version", help="print the version")
     return p
 
@@ -67,6 +71,9 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.command == "rules":
         return _cmd_rules(args)
+
+    if args.command == "demo":
+        return _cmd_demo(args)
 
     if args.command == "pattern":
         reports = [eng.scan_pattern(args.pattern)]
@@ -111,6 +118,26 @@ def _print_text(reports) -> None:
         print("no findings")
     else:
         print(f"{counted} finding(s)")
+
+
+def _cmd_demo(args: argparse.Namespace) -> int:
+    """The visitor's first command: runs on a bare install, exits 0.
+
+    Deliberately not gated on findings — a demo that fails is a demo a visitor
+    reads as "the tool is broken".
+    """
+    from . import demo as demo_mod
+
+    reports, _tmp = demo_mod.run_demo()
+    if args.json:
+        print(eng.dumps_json(eng.to_json(reports)))
+        return 0
+    print(demo_mod.render(reports))
+    missing = demo_mod.missing_rules(reports)
+    if missing:  # pragma: no cover - CI catches this before a user does
+        print(f"warning: demo no longer reaches {', '.join(missing)}",
+              file=sys.stderr)
+    return 0
 
 
 def _cmd_rules(args: argparse.Namespace) -> int:

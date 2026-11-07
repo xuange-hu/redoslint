@@ -175,3 +175,32 @@ def test_iter_all_counts_every_node():
 def test_contains_backref():
     assert an.contains_backref(parse(r"(\w)\1"), 1)
     assert not an.contains_backref(parse(r"(\w)"), 1)
+
+
+def test_fixed_length_constant_iterations():
+    # (?:a{2})* consumes exactly two characters per iteration: the split points
+    # are pinned, so it cannot be the nested-quantifier blowup RDS001 looks for.
+    assert an.fixed_length(parse("(?:a{2})*")) is None  # the quantifier itself
+    from redoslint.parser import Group, Quant
+    node = parse("(?:a{2})")
+    assert an.fixed_length(node) == 2
+    assert isinstance(parse("(?:a{2})"), Group)
+    assert isinstance(parse("(?:a{2})").child, Quant)
+
+
+def test_fixed_length_of_variable_fragments_is_none():
+    assert an.fixed_length(parse("a+")) is None
+    assert an.fixed_length(parse("a{1,3}")) is None
+    assert an.fixed_length(parse(r"\w")) == 1
+    assert an.fixed_length(parse("^")) == 0
+    assert an.fixed_length(parse("abc")) == 3
+
+
+def test_fixed_length_alternation_needs_equal_branches():
+    assert an.fixed_length(parse("(?:a{2}|b{2})")) == 2
+    assert an.fixed_length(parse("(?:a|bb)")) is None
+
+
+def test_fixed_length_rejects_backreferences():
+    # A backreference consumes as much as the group captured: never fixed.
+    assert an.fixed_length(parse(r"(a)\1")) is None

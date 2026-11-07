@@ -45,7 +45,13 @@ redoslint scan ./src --fail-on medium
 redoslint scan . --sarif redoslint.sarif --fail-on high
 ```
 
-仓库内自带的两个夹具，不需要联网：
+连安装都不必先找夹具——演示用例打包在包里，不联网、不带参数：
+
+```bash
+redoslint demo                          # 17 条正则里 9 条命中，退出码 0
+```
+
+同样的夹具也在仓库里，同时充当 CI 契约：
 
 ```bash
 redoslint scan examples/vulnerable.py   # 9 finding(s)，退出码 1
@@ -63,6 +69,8 @@ redoslint scan examples/safe.py         # no findings，退出码 0
 - `(ab+)+` —— `b+` 吃不到下一轮必须开头的那个 `a`，边界被钉死 → 不报。
 - `(\d{1,3}\.){3}\d{1,3}`（IPv4）—— 末尾的 `.` 把组和最后一段八位组隔开 → 不报。
 - `.*abc.*` —— 两个 dot，但中间夹着字面量 → 不报。
+- `(?:a{2})*` —— 同样是嵌套，但每轮固定消耗两个字符，切分点被钉死 → 不报。固定
+  长度的迭代体在比较字符集之前就先判掉（`analyze.fixed_length`）。
 
 整套设计就这一句：做字符集代数，不做「正则高尔夫」。这也是为什么第二遍扫描能看到
 局部视角看不到的结构：嵌在三层分组里的交替分支，仍然会在每一轮外层迭代里重新进入，
@@ -142,7 +150,8 @@ src/redoslint/analyze.py    full/start/end 字符集、可空性
 src/redoslint/rules.py      九条规则，两遍扫描
 src/redoslint/engine.py     编排、JSON、SARIF
 src/redoslint/extract.py    各语言字面量提取
-src/redoslint/cli.py        scan / pattern / rules / version
+src/redoslint/cli.py        scan / pattern / rules / demo / version
+src/redoslint/demo.py       内嵌夹具，供 `redoslint demo` 使用
 src/redoslint/mcp_server.py 六个 MCP 工具
 examples/vulnerable.py      九条规则全部命中（CI 断言）
 examples/safe.py            同样任务的安全写法（CI 断言干净）

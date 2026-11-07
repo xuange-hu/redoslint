@@ -1,7 +1,7 @@
 # redoslint
 
 [![CI](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml/badge.svg)](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml)
-![tests-266%20passing](https://img.shields.io/badge/tests-266%20passing-brightgreen)
+![tests-281%20passing](https://img.shields.io/badge/tests-281%20passing-brightgreen)
 ![python-3.10%2B](https://img.shields.io/badge/python-3.10%2B-blue)
 ![dependencies-0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![rules-9](https://img.shields.io/badge/rules-9-informational)
@@ -51,7 +51,14 @@ redoslint scan ./src --fail-on medium
 redoslint scan . --sarif redoslint.sarif --fail-on high
 ```
 
-The demo fixture fires all nine rules and needs no network:
+Or skip the setup entirely — the demo ships inside the package and needs no
+network, no fixtures, no arguments:
+
+```bash
+redoslint demo                          # 9 finding(s) across 17 patterns, exit 0
+```
+
+The same fixtures are checked in, so they double as the CI contract:
 
 ```bash
 redoslint scan examples/vulnerable.py   # 9 finding(s), exit 1
@@ -71,6 +78,9 @@ question per candidate: **can these two fragments match the same characters?**
 - `(\d{1,3}\.){3}\d{1,3}` (IPv4) — the trailing `.` pins the boundary between
   the group and the final octet → nothing.
 - `.*abc.*` — two dots, but literals sit between them → nothing.
+- `(?:a{2})*` — nested, but every iteration consumes exactly two characters,
+  so the split points are pinned → nothing. A fixed-length body is checked
+  before the charsets are compared (`analyze.fixed_length`).
 
 That is the whole design: character-set algebra instead of regex golf. It is
 also why the second pass can see structure a local view cannot — an
@@ -130,6 +140,8 @@ uvx --from "redoslint[mcp]" redoslint-mcp
 | `redos_sarif` | SARIF 2.1.0 document |
 | `redos_version` | version |
 
+The CLI has the same tour: `redoslint demo [--json]`.
+
 The core stays zero-dependency; `mcp` lives in an extra and is pinned to
 `>=1.2,<2` (2.x renamed `FastMCP` to `MCPServer`).
 
@@ -156,7 +168,8 @@ src/redoslint/analyze.py    full/start/end charsets, nullability
 src/redoslint/rules.py      nine rules, two passes
 src/redoslint/engine.py     orchestration, JSON, SARIF
 src/redoslint/extract.py    per-language literal extraction
-src/redoslint/cli.py        scan / pattern / rules / version
+src/redoslint/cli.py        scan / pattern / rules / demo / version
+src/redoslint/demo.py       embedded fixtures for `redoslint demo`
 src/redoslint/mcp_server.py six MCP tools
 examples/vulnerable.py      every rule fires here (CI asserts it)
 examples/safe.py            the same tasks written safely (CI asserts clean)

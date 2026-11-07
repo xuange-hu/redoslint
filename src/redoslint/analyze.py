@@ -117,6 +117,47 @@ def nullable(node: Node) -> bool:
     return True  # Anchor, Look, Backref(when the group matched empty)
 
 
+def fixed_length(node: Node) -> int | None:
+    """Characters this fragment consumes, if that number is the same for every
+    match — else None.
+
+    This is what separates a real nested-quantifier blowup from a fixed one:
+    in `(?:a{2})*` every iteration consumes exactly two characters, so the
+    split points are pinned and nothing backtracks. In `(a+)+` the inner
+    length is free, so every split is a new branch.
+    """
+    if isinstance(node, Lit):
+        return len(node.ch)
+    if isinstance(node, (Class, Dot)):
+        return 1
+    if isinstance(node, (Anchor, Look)):
+        return 0
+    if isinstance(node, Group):
+        return fixed_length(node.child)
+    if isinstance(node, Backref):
+        return None  # depends on what the referenced group matched
+    if isinstance(node, Concat):
+        total = 0
+        for part in node.parts:
+            n = fixed_length(part)
+            if n is None:
+                return None
+            total += n
+        return total
+    if isinstance(node, Alt):
+        lengths = {fixed_length(branch) for branch in node.branches}
+        if len(lengths) == 1:
+            (only,) = lengths
+            return only
+        return None
+    if isinstance(node, Quant):
+        if node.max is None or node.max != node.min:
+            return None
+        inner = fixed_length(node.child)
+        return None if inner is None else inner * node.min
+    return None
+
+
 def unwrap_groups(node: Node) -> Node:
     """Look through plain groups (not looks) to the first structural node."""
     while isinstance(node, Group):
