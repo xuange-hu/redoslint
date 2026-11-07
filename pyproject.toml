@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redoslint"
+version = "0.1.0"
+description = "ReDoS audit with the bytes that prove each finding — catastrophic-backtracking rules over a hand-written regex parser, zero dependencies."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "xuange-hu" }]
+# The core is dependency-free on purpose: this runs on a jump host, in a slim
+# container, and on a runner with no package index.
+dependencies = []
+keywords = [
+  "redos",
+  "regex",
+  "regular-expression",
+  "backtracking",
+  "denial-of-service",
+  "security-audit",
+  "static-analysis",
+  "sast",
+  "sarif",
+  "mcp",
+  "model-context-protocol",
+  "devsecops",
+  "zero-dependencies",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.optional-dependencies]
+# mcp 2.x renamed FastMCP -> MCPServer and moved it; this server targets 1.x.
+mcp = ["mcp>=1.2,<2"]
+all = ["mcp>=1.2,<2"]
+
+[project.scripts]
+# cli.py imports only the stdlib, so the console script keeps the
+# zero-dependency promise without any extra (tests/test_packaging.py pins this).
+redoslint = "redoslint.cli:main"
+# mcp is imported lazily inside build_server(), so this script is importable
+# without the extra; running it without `[mcp]` prints an actionable error.
+redoslint-mcp = "redoslint.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/xuange-hu/redoslint"
+Issues = "https://github.com/xuange-hu/redoslint/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
