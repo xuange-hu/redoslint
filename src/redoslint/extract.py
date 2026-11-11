@@ -79,10 +79,67 @@ def extract_python(text: str) -> list[Hit]:
     return hits
 
 
-def _string_after(text: str, call: re.Pattern[str], origin: str) -> list[Hit]:
+def _unescape(body: str) -> str:
+    r"""Collapse ``\\`` to ``\`` in a source string literal.
+
+    ``new RegExp("^\\d*$")`` (legal JS / Java / Go, and the only way to write
+    it there) holds ``^\d*$`` at runtime, but the extractor reads raw file
+    bytes. Without this the pattern scans as ``^\\d*$`` — a literal backslash
+    — and every character-class rule misses the entire real-world constructor
+    style. Other sequences (``\d``, ``\1``, ``\n``, ``\uXXXX``) are left
+    alone on purpose: regex engines parse those themselves, and dropping
+    their backslash (what the JS string spec does to an un-doubled ``\d``)
+    would hide the developer's intent and lose findings.
+    """
+    if "\\" not in body:
+        return body
+    out: list[str] = []
+    i, n = 0, len(body)
+    while i < n:
+        if body[i] == "\\" and i + 1 < n and body[i + 1] == "\\":
+            out.append("\\")
+            i += 2
+        else:
+            out.append(body[i])
+            i += 1
+    return "".join(out)
+
+
+def _closing_quote(tail: str, start: int, q: str, *, escaped: bool) -> int:
+    """Index of the quote closing the literal opened at ``start``.
+
+    In an escaped string, ``\"`` and ``\\"`` must not be mistaken for the
+    terminator; a raw quote style (Go backtick) has no escapes, so a plain
+    search is the correct scan there.
+    """
+    if not escaped:
+        return tail.find(q, start + 1)
+    j, n = start + 1, len(tail)
+    while j < n:
+        c = tail[j]
+        if c == "\\":
+            j += 2  # the backslash and the character it escapes both belong to the body
+            continue
+        if c == q:
+            return j
+        j += 1
+    return -1
+
+
+def _string_after(
+    text: str,
+    call: re.Pattern[str],
+    origin: str,
+    *,
+    raw_quotes: frozenset[str] = frozenset(),
+) -> list[Hit]:
     """Extract the string literal that follows a call on the *same line*.
     Searching further than the line boundary would pick up the next
-    statement's quotes and silently report the wrong pattern."""
+    statement's quotes and silently report the wrong pattern.
+
+    ``raw_quotes`` names quote styles the language does *not* process
+    backslash escapes in (Go's backtick raw string); those skip unescaping.
+    """
     hits = []
     for m in call.finditer(text):
         line = text.count("\n", 0, m.start()) + 1
@@ -93,10 +150,13 @@ def _string_after(text: str, call: re.Pattern[str], origin: str) -> list[Hit]:
             idx = tail.find(q)
             if idx == -1:
                 continue
-            end = tail.find(q, idx + 1)
+            end = _closing_quote(tail, idx, q, escaped=q not in raw_quotes)
             if end == -1:
                 continue
-            hits.append(Hit(line, col + idx + 1, tail[idx + 1:end], origin))
+            body = tail[idx + 1:end]
+            if q not in raw_quotes:
+                body = _unescape(body)
+            hits.append(Hit(line, col + idx + 1, body, origin))
             break
     return hits
 
@@ -106,7 +166,11 @@ _JAVA_CALL = re.compile(r"Pattern\.compile\(")
 
 
 def extract_go(text: str) -> list[Hit]:
-    return _string_after(text, _GO_CALL, "regexp.Compile")
+    # Backtick raw strings keep backslashes verbatim: `^\\d*$` really is two
+    # backslashes there, so only the quoted forms get unescaped.
+    return _string_after(
+        text, _GO_CALL, "regexp.Compile", raw_quotes=frozenset("`"),
+    )
 
 
 def extract_java(text: str) -> list[Hit]:

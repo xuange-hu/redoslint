@@ -128,6 +128,57 @@ def test_js_does_not_extract_division():
     assert not any(h.pattern == " count" for h in hits)
 
 
+# -- string-literal escaping (regression: the constructor style) ----------
+
+def test_js_ctor_double_backslash_is_unescaped():
+    # Legal JS writes the digit class as "\\d"; reading raw file bytes used
+    # to yield a literal backslash and silently drop every such finding.
+    src = 'const a = new RegExp("^\\\\d*\\\\d*$");\n'
+    hits = extract.extract(src, "js")
+    assert [h.pattern for h in hits] == [r"^\d*\d*$"]
+
+
+def test_js_ctor_escaped_quote_does_not_end_the_string():
+    # \" is an identity escape the regex engine reads as a bare quote, so it
+    # stays verbatim; what matters is it did not terminate the literal early.
+    src = 'const a = new RegExp("^\\\"a\\\"$");\n'
+    hits = extract.extract(src, "js")
+    assert [h.pattern for h in hits] == ['^\\"a\\"$']
+
+
+def test_js_ctor_single_backslash_sequences_are_kept():
+    # \d, \1, \n belong to the regex engine; only \\ changes meaning.
+    src = 'const a = new RegExp("^(a+)\\\\1+$");\n'
+    hits = extract.extract(src, "js")
+    assert [h.pattern for h in hits] == [r"^(a+)\1+$"]
+
+
+def test_js_regex_literal_is_not_unescaped():
+    # /.../ content is already regex source, not a string literal.
+    src = "const a = /^\\\\d*$/;\n"
+    hits = extract.extract(src, "js")
+    assert [h.pattern for h in hits] == [r"^\\d*$"]
+
+
+def test_go_double_quoted_is_unescaped():
+    src = 'var re = regexp.MustCompile("^\\\\d*$")\n'
+    hits = extract.extract(src, "go")
+    assert [h.pattern for h in hits] == [r"^\d*$"]
+
+
+def test_go_backtick_raw_string_keeps_backslashes():
+    # Go raw strings process no escapes: `^\\d*$` really is two backslashes.
+    src = "var re = regexp.MustCompile(`^\\\\d*$`)\n"
+    hits = extract.extract(src, "go")
+    assert [h.pattern for h in hits] == [r"^\\d*$"]
+
+
+def test_java_double_backslash_is_unescaped():
+    src = 'Pattern.compile("^\\\\d*$");\n'
+    hits = extract.extract(src, "java")
+    assert [h.pattern for h in hits] == [r"^\d*$"]
+
+
 # -- dispatch ------------------------------------------------------------
 
 def test_language_by_extension():
