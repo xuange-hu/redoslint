@@ -41,7 +41,11 @@ class Rule:
 
 
 def _q_is_loose(q: Quant) -> bool:
-    """A quantifier that can iterate more than once."""
+    """A quantifier that can iterate more than once *and* still backtrack.
+    A possessive quantifier (a*+) commits like an atomic group, so no
+    failure path ever re-enters it — it cannot be part of a blowup."""
+    if q.possessive:
+        return False
     return q.max is None or q.max >= 2
 
 
@@ -169,18 +173,24 @@ def check_rds005(node: Node, ctx) -> list[Finding]:
 def check_rds007(node: Node, ctx) -> list[Finding]:
     """A fragment that can match the empty string under an unbounded
     quantifier — (a*)+, (|a)+, (a?)* — empty-match iteration; engines either
-    loop forever or pay quadratic guards."""
+    loop forever or pay quadratic guards.
+
+    A body whose length is *always* zero ((?=a)*, (?:(?!b))*), on the other
+    hand, never consumes anything: every engine guards zero-width iterations
+    with a progress check, so those are linear and stay silent."""
     if not isinstance(node, Quant) or not _q_is_loose(node):
         return []
-    if an.nullable(an.unwrap_groups(node.child)):
-        return [Finding(
-            "RDS007", "high", node.span,
-            "quantifier iterates a fragment that can match the empty string; "
-            "engines either spin on empty iterations or backtrack badly",
-            "make the inner fragment non-nullable, e.g. (a+)+ instead of "
-            "(a*)+ — better: a+",
-        )]
-    return []
+    if not an.nullable(an.unwrap_groups(node.child)):
+        return []
+    if an.fixed_length(node.child) == 0:
+        return []
+    return [Finding(
+        "RDS007", "high", node.span,
+        "quantifier iterates a fragment that can match the empty string; "
+        "engines either spin on empty iterations or backtrack badly",
+        "make the inner fragment non-nullable, e.g. (a+)+ instead of "
+        "(a*)+ — better: a+",
+    )]
 
 
 def check_rds008(node: Node, ctx) -> list[Finding]:

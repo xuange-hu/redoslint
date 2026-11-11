@@ -15,6 +15,7 @@ from .parser import (
     Backref,
     Class,
     Concat,
+    Cond,
     Dot,
     Group,
     Lit,
@@ -45,6 +46,12 @@ def full_charset(node: Node) -> list[tuple[int, int]]:
         return full_charset(node.child)
     if isinstance(node, Group):
         return full_charset(node.child)
+    if isinstance(node, Cond):
+        # the group is set or it is not: both branches stay reachable
+        out = full_charset(node.yes)
+        if node.no is not None:
+            out = cs.union(out, full_charset(node.no))
+        return out
     if isinstance(node, Look):
         return []  # consumes nothing
     return []  # Anchor, Backref
@@ -69,6 +76,11 @@ def start_charset(node: Node) -> list[tuple[int, int]]:
         return start_charset(node.child)
     if isinstance(node, Group):
         return start_charset(node.child)
+    if isinstance(node, Cond):
+        out = start_charset(node.yes)
+        if node.no is not None:
+            out = cs.union(out, start_charset(node.no))
+        return out
     if isinstance(node, (Anchor, Look)):
         return []
     return full_charset(node)
@@ -96,6 +108,11 @@ def end_charset(node: Node) -> list[tuple[int, int]]:
         return end_charset(node.child)
     if isinstance(node, Group):
         return end_charset(node.child)
+    if isinstance(node, Cond):
+        out = end_charset(node.yes)
+        if node.no is not None:
+            out = cs.union(out, end_charset(node.no))
+        return out
     if isinstance(node, (Anchor, Look)):
         return []
     return full_charset(node)
@@ -114,6 +131,11 @@ def nullable(node: Node) -> bool:
         return node.min == 0 or nullable(node.child)
     if isinstance(node, Group):
         return nullable(node.child)
+    if isinstance(node, Cond):
+        # set -> must match yes; unset -> matches only when there is an
+        # else-branch (otherwise the whole conditional fails).
+        return nullable(node.yes) or (
+            node.no is not None and nullable(node.no))
     return True  # Anchor, Look, Backref(when the group matched empty)
 
 
@@ -134,6 +156,11 @@ def fixed_length(node: Node) -> int | None:
         return 0
     if isinstance(node, Group):
         return fixed_length(node.child)
+    if isinstance(node, Cond):
+        if node.no is None:
+            return fixed_length(node.yes)
+        y, n = fixed_length(node.yes), fixed_length(node.no)
+        return y if y == n else None
     if isinstance(node, Backref):
         return None  # depends on what the referenced group matched
     if isinstance(node, Concat):
@@ -177,13 +204,19 @@ def children(node: Node) -> list[Node]:
         return list(node.parts)
     if isinstance(node, Alt):
         return list(node.branches)
-    if isinstance(node, (Quant, Group, Look)):
+    if isinstance(node, Quant):
         return [node.child]
+    if isinstance(node, Group):
+        return [node.child]
+    if isinstance(node, Look):
+        return [node.child]
+    if isinstance(node, Cond):
+        return [node.yes] + ([node.no] if node.no is not None else [])
     return []
 
 
 def contains_backref(node: Node, group_index: int) -> bool:
-    """Does this subtree reference `group_index` via \\n, \\g<n> or (?P=n)?"""
+    """Does this subtree reference `group_index` via \\n or (?P=name)?"""
     for sub in iter_all(node):
         if isinstance(sub, Backref) and sub.index == group_index:
             return True

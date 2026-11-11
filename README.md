@@ -1,7 +1,7 @@
 # redoslint
 
 [![CI](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml/badge.svg)](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml)
-![tests-340%20passing](https://img.shields.io/badge/tests-340%20passing-brightgreen)
+![tests-541%20passing](https://img.shields.io/badge/tests-541%20passing-brightgreen)
 ![python-3.10%2B](https://img.shields.io/badge/python-3.10%2B-blue)
 ![dependencies-0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![rules-9](https://img.shields.io/badge/rules-9-informational)

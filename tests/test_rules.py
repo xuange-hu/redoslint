@@ -176,7 +176,6 @@ def test_rds006_is_high_severity():
     r"^(a*)+b$",
     r"^(a?)*$",
     r"^(a*b*)+$",
-    r"^(\b)*$",
 ])
 def test_rds007_fires(pattern):
     assert "RDS007" in ids(pattern)
@@ -184,6 +183,14 @@ def test_rds007_fires(pattern):
 
 def test_rds007_does_not_fire_on_non_nullable_body():
     assert "RDS007" not in ids(r"^(a+)+b$")
+
+
+def test_rds007_does_not_fire_on_zero_width_body():
+    # a body that can only ever match zero characters never trips an
+    # engine's progress guard — the iteration is linear, not a blowup
+    assert "RDS007" not in ids(r"^(\b)*$")
+    assert "RDS007" not in ids(r"^(?=a)*$")
+    assert "RDS007" not in ids(r"^(?:(?!b))*$")
 
 
 def test_rds007_is_high_severity():

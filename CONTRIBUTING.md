@@ -58,7 +58,7 @@ silently dropped on the floor.
 ## Tests
 
 ```bash
-python -m pytest -q                       # 340 tests
+python -m pytest -q                       # 541 tests
 python -m pytest -q --durations=5         # the suite must stay fast
 redoslint scan src --fail-on low          # the scanner must not flag itself
 ```
