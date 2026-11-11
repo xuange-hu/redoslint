@@ -21,6 +21,32 @@ pattern: '^(a+)+$'
     fix: rewrite as a single quantifier, e.g. a+ instead of (a+)+; ...
 ```
 
+## Contents
+
+- [Why this exists](#why-this-exists)
+- [Quickstart](#quickstart)
+- [How it decides](#how-it-decides)
+- [Rules](#rules)
+- [Samples it understands](#samples-it-understands)
+- [MCP server](#mcp-server)
+- [GitHub Actions](#github-actions)
+- [Layout](#layout)
+- [Limitations](#limitations)
+- [Contributing](#contributing)
+
+## Contents
+
+- [Why this exists](#why-this-exists)
+- [Quickstart](#quickstart)
+- [How it decides](#how-it-decides)
+- [Rules](#rules)
+- [Samples it understands](#samples-it-understands)
+- [MCP server](#mcp-server)
+- [GitHub Actions](#github-actions)
+- [Layout](#layout)
+- [Limitations](#limitations)
+- [Contributing](#contributing)
+
 ## Why this exists
 
 Every LLM writes regexes like `^(\w+\s?)+$` and every one of those is a
