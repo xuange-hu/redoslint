@@ -13,8 +13,8 @@ from redoslint import mcp_server
 mcp = pytest.importorskip("mcp", reason="the mcp extra is not installed")
 
 
-def test_tool_manifest_has_six_tools():
-    assert len(mcp_server.tool_manifest()) == 6
+def test_tool_manifest_has_seven_tools():
+    assert len(mcp_server.tool_manifest()) == 7
 
 
 def test_tool_names_match_the_constant():
@@ -79,6 +79,16 @@ def test_call_sarif(tmp_path):
 def test_call_version():
     doc = json.loads(mcp_server.call_tool("redos_version", {}))
     assert doc["version"] == "0.1.0"
+
+
+def test_call_demo_returns_findings_and_coverage():
+    """The demo must be self-proving: real findings, plus an honest list of
+    rules the fixture corpus does not exercise."""
+    doc = json.loads(mcp_server.call_tool("redos_demo", {}))
+    assert doc["reports"], "the vulnerable fixture must produce findings"
+    assert any(r.get("findings") for r in doc["reports"])
+    assert isinstance(doc["missingRules"], list)
+    assert doc["fixtureDir"]
 
 
 def test_unknown_tool_reports_error():

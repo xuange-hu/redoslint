@@ -1,7 +1,7 @@
 # redoslint
 
 [![CI](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml/badge.svg)](https://github.com/xuange-hu/redoslint/actions/workflows/ci.yml)
-![tests-339%20passing](https://img.shields.io/badge/tests-339%20passing-brightgreen)
+![tests-340%20passing](https://img.shields.io/badge/tests-340%20passing-brightgreen)
 ![python-3.10%2B](https://img.shields.io/badge/python-3.10%2B-blue)
 ![dependencies-0](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![rules-9](https://img.shields.io/badge/rules-9-informational)
@@ -212,7 +212,7 @@ src/redoslint/cli.py        scan / pattern / rules / demo / version
 src/redoslint/demo.py       embedded fixtures for `redoslint demo`
 docs/rules.md               per-rule rationale + measured backtracking timings
 docs/bench.py               reproduces them, subprocess-isolated
-src/redoslint/mcp_server.py six MCP tools
+src/redoslint/mcp_server.py seven MCP tools
 examples/vulnerable.py      every rule fires here (CI asserts it)
 examples/safe.py            the same tasks written safely (CI asserts clean)
 ```

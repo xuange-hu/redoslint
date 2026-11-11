@@ -1,4 +1,4 @@
-"""MCP server: 6 tools so an agent can audit regexes without leaving chat.
+"""MCP server: 7 tools so an agent can audit regexes without leaving chat.
 
 Run standalone:  uvx --from "redoslint[mcp]" redoslint-mcp
 Or from code:    build_server().run()  (stdio transport)
@@ -18,6 +18,7 @@ TOOL_NAMES = [
     "redos_rule_detail",
     "redos_sarif",
     "redos_version",
+    "redos_demo",
 ]
 
 
@@ -97,6 +98,15 @@ def tool_manifest() -> list[dict]:
             "description": "Return the redoslint version.",
             "inputSchema": {"type": "object", "properties": {}},
         },
+        {
+            "name": "redos_demo",
+            "description": (
+                "Run the built-in vulnerable fixtures and return every finding as "
+                "JSON, with which rules the corpus does not cover. No network, no "
+                "input needed - the fastest way to see the output shape."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
     ]
 
 
@@ -138,6 +148,16 @@ def call_tool(name: str, args: dict) -> str:
         return eng.dumps_json(eng.to_sarif(reports))
     if name == "redos_version":
         return json.dumps({"tool": "redoslint", "version": __version__})
+    if name == "redos_demo":
+        from . import demo as demo_mod
+
+        reports, tmp = demo_mod.run_demo()
+        payload = json.loads(eng.dumps_json(eng.to_json(reports)))
+        # coverage is about the fixture, not about the caller - report it
+        # explicitly so a missing rule is never mistaken for a clean scan
+        payload["missingRules"] = demo_mod.missing_rules(reports)
+        payload["fixtureDir"] = tmp
+        return json.dumps(payload, indent=2, ensure_ascii=False)
     return json.dumps({"error": f"unknown tool {name}"})
 
 
@@ -181,6 +201,11 @@ def build_server():
     def redos_version() -> str:
         """Return the redoslint version."""
         return call_tool("redos_version", {})
+
+    @mcp.tool()
+    def redos_demo() -> str:
+        """Run the built-in vulnerable fixtures and return findings as JSON."""
+        return call_tool("redos_demo", {})
 
     return mcp
 
