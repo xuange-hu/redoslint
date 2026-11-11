@@ -91,7 +91,8 @@ jobs:
               return sorted(t.name for t in tools)
           names = asyncio.run(go())
           expected = sorted(['redos_scan','redos_pattern','redos_rules',
-                             'redos_rule_detail','redos_sarif','redos_version'])
+                             'redos_rule_detail','redos_sarif','redos_version',
+                             'redos_demo'])
           assert names == expected, names
           print('mcp tools:', names)
           "
