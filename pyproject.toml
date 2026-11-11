@@ -45,8 +45,8 @@ classifiers = [
 
 [project.optional-dependencies]
 # mcp 2.x renamed FastMCP -> MCPServer and moved it; this server targets 1.x.
-mcp = ["mcp>=1.2,<2"]
-all = ["mcp>=1.2,<2"]
+mcp = ["mcp>=1.2,<3"]
+all = ["mcp>=1.2,<3"]
 
 [project.scripts]
 # cli.py imports only the stdlib, so the console script keeps the
